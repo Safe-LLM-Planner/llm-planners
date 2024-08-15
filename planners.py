@@ -1,3 +1,4 @@
+import json
 from utils import query_llm, run_symbolic_planner
 
 ###############################################################################
@@ -22,9 +23,22 @@ class BaseLlmPlanner(BasePlanner):
     def run_planner(self, task_nl, domain_nl, domain_pddl):
         
         prompt = self._create_prompt(task_nl, domain_nl)
-        text_plan = query_llm(prompt, domain_pddl)
+        json_structured_plan = query_llm(prompt, domain_pddl)
+        pddl_structured_plan = self._translate_json_to_pddl(json_structured_plan)
 
-        return text_plan, None
+        return pddl_structured_plan, None
+
+    def _translate_json_to_pddl(self, json_structured_plan: str):
+        pddl_plan = []
+
+        plan_dict = json.loads(json_structured_plan)
+        
+        for step in plan_dict["steps"]:
+            action_name = step["action_name"]
+            arguments = [value for key, value in step.items() if key != "action_name"]
+            pddl_plan.append(f"({action_name} {' '.join(arguments)})")
+        
+        return "\n".join(pddl_plan)
 
 class BaseLlmPddlPlanner(BasePlanner):
 

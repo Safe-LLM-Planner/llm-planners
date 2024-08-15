@@ -4,6 +4,8 @@ import openai
 import os
 import subprocess
 
+from pydantic_generator import PydanticModelGenerator
+
 def postprocess(x):
     return x.strip()
 
@@ -30,26 +32,35 @@ def load_openai_key():
 
 openai_client = openai.OpenAI(api_key=load_openai_key())
 
-def query_llm(prompt_text):
+def query_llm(prompt_text, domain_pddl = None):
+
+    response_format = None
+    if domain_pddl:
+        model_generator = PydanticModelGenerator(domain_pddl)
+        response_format = model_generator.create_response_model()
+
     server_cnt = 0
     result_text = ""
     while server_cnt < 10:
         try:
             @backoff.on_exception(backoff.expo, openai.RateLimitError)
             def completions_with_backoff(**kwargs):
-                return openai_client.chat.completions.create(**kwargs)
+                return openai_client.beta.chat.completions.parse(**kwargs)
 
-            response = completions_with_backoff(
-                model="gpt-4",
-                temperature=0.0,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0,
-                messages=[
+            completions_args = {
+                'model': "gpt-4o-2024-08-06",
+                'temperature': 0.0,
+                'top_p': 1,
+                'frequency_penalty': 0,
+                'presence_penalty': 0,
+                'messages': [
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt_text},
-                ],
-            )
+                ]
+            }
+            if response_format:
+                completions_args['response_format'] = response_format
+            response = completions_with_backoff(**completions_args)
             result_text = response.choices[0].message.content
             break
         except Exception as e:

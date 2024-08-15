@@ -22,7 +22,7 @@ class BaseLlmPlanner(BasePlanner):
     def run_planner(self, task_nl, domain_nl, domain_pddl):
         
         prompt = self._create_prompt(task_nl, domain_nl)
-        text_plan = query_llm(prompt)
+        text_plan = query_llm(prompt, domain_pddl)
 
         return text_plan, None
 

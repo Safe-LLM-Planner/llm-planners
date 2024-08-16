@@ -1,11 +1,13 @@
+import backoff
 import json
-from utils import query_llm, run_symbolic_planner
+import openai
 
-###############################################################################
-#
-# The agent that leverages classical planner to help LLMs to plan
-#
-###############################################################################
+from pydantic_generator import PydanticModelGenerator
+from utils import openai_client
+from juliacall import Main as jl
+
+# Initialize Julia and load PDDL package
+jl.seval('using PDDL, SymbolicPlanners')
 
 class BasePlanner:
     
@@ -18,12 +20,49 @@ class BasePlanner:
     def _create_prompt(self, task_nl, domain_nl):
         pass
 
+    def _query_llm(self, prompt_text, domain_pddl = None):
+
+        @backoff.on_exception(backoff.expo, openai.RateLimitError)
+        def completions_with_backoff(**kwargs):
+            return openai_client.beta.chat.completions.parse(**kwargs)
+
+        response_format = None
+        if domain_pddl:
+            model_generator = PydanticModelGenerator(domain_pddl)
+            response_format = model_generator.create_response_model()
+
+        server_cnt = 0
+        result_text = ""
+        while server_cnt < 10:
+            try:
+
+                completions_args = {
+                    'model': "gpt-4o-2024-08-06",
+                    'temperature': 0.0,
+                    'top_p': 1,
+                    'frequency_penalty': 0,
+                    'presence_penalty': 0,
+                    'messages': [
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": prompt_text},
+                    ]
+                }
+                if response_format:
+                    completions_args['response_format'] = response_format
+                response = completions_with_backoff(**completions_args)
+                result_text = response.choices[0].message.content
+                break
+            except Exception as e:
+                server_cnt += 1
+                print(e)
+        return result_text
+
 class BaseLlmPlanner(BasePlanner):
 
     def run_planner(self, task_nl, domain_nl, domain_pddl):
         
         prompt = self._create_prompt(task_nl, domain_nl)
-        json_structured_plan = query_llm(prompt, domain_pddl)
+        json_structured_plan = self._query_llm(prompt, domain_pddl)
         pddl_structured_plan = self._translate_json_to_pddl(json_structured_plan)
 
         return pddl_structured_plan, None
@@ -45,11 +84,27 @@ class BaseLlmPddlPlanner(BasePlanner):
     def run_planner(self, task_nl, domain_nl, domain_pddl):
         
         prompt = self._create_prompt(task_nl, domain_nl)
-        task_pddl = query_llm(prompt)
+        task_pddl = self._query_llm(prompt)
 
-        plan = run_symbolic_planner(domain_pddl, task_pddl)
+        plan = self._run_symbolic_planner(domain_pddl, task_pddl)
 
         return plan, task_pddl
+
+    def _run_symbolic_planner(self, domain_pddl_text, problem_pddl_text):
+
+        # plan
+        domain = jl.PDDL.parse_domain(domain_pddl_text)
+        problem = jl.PDDL.parse_problem(problem_pddl_text)
+        planner = jl.SymbolicPlanners.AStarPlanner(jl.SymbolicPlanners.HAdd())
+        if jl.isnothing(jl.PDDL.get_constraints(problem)):
+            sol = planner(domain, problem)
+        else:
+            state = jl.PDDL.initstate(domain, problem)
+            spec = jl.SymbolicPlanners.StateConstrainedGoal(problem)
+            sol = planner(domain, state, spec)
+
+        sol_str = "\n".join([jl.PDDL.write_pddl(a) for a in sol])
+        return sol_str
 
 class LlmIcPddlPlanner(BaseLlmPddlPlanner):
     """
@@ -69,7 +124,9 @@ class LlmIcPddlPlanner(BaseLlmPddlPlanner):
                  f"The problem PDDL file to this problem is: \n {context_pddl} \n" + \
                  f"Now I have a new planning problem and its description is: \n {task_nl} \n" + \
                  f"Provide me with the problem PDDL file that describes " + \
-                 f"the new planning problem directly without further explanations? Only return the PDDL file. Do not return anything else."
+                 f"the new planning problem directly without further explanations? " + \
+                 f"Only return the text of the PDDL file. " + \
+                 f"Do not include any code block delimiters and do not return anything else."
         return prompt
 
 class LlmPddlPlanner(BaseLlmPddlPlanner):
@@ -86,7 +143,7 @@ class LlmPddlPlanner(BaseLlmPddlPlanner):
                  f"The problem description is: \n {task_nl} \n" + \
                  f"Provide me with the problem PDDL file that describes " + \
                  f"the planning problem directly without further explanations?" +\
-                 f"Keep the domain name consistent in the problem PDDL. Only return the PDDL file. Do not return anything else."
+                 f"Keep the domain name consistent in the problem PDDL. Only return the text of the PDDL file. Do not return anything else."
         return prompt
 
 class LlmPlanner(BaseLlmPlanner):
@@ -152,7 +209,7 @@ class LlmTotPlanner(BasePlanner):
             if len(steps) > max_depth:
                 return "", None
             candidates_prompt = self._create_llm_tot_ic_prompt(task_nl, domain_nl, context, plan)
-            candidates = query_llm(candidates_prompt).strip()
+            candidates = self._query_llm(candidates_prompt).strip()
             print (candidates)
             lines = candidates.split('\n')
             for line in lines:
@@ -161,7 +218,7 @@ class LlmTotPlanner(BasePlanner):
                 if len(line) > 0 and '->' in line:
                     new_plan = plan + "\n" + line
                     value_prompt = self._create_llm_tot_ic_value_prompt(task_nl, domain_nl, context, new_plan)
-                    answer = query_llm(value_prompt).strip().lower()
+                    answer = self._query_llm(value_prompt).strip().lower()
                     print(new_plan)
                     print("Response \n" + answer)
 

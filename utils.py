@@ -1,4 +1,3 @@
-import config
 import openai
 import os
 import subprocess

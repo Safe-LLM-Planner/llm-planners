@@ -1,6 +1,0 @@
-# FAST_DOWNWARD_ALIAS = "lama"
-# FAST_DOWNWARD_ALIAS = "seq-opt-fdss-1"
-FAST_DOWNWARD_ALIAS = None
-# FAST_DOWNWARD_SEARCH = "eager_greedy([add()])"
-FAST_DOWNWARD_SEARCH = None
-JULIA_PLANNER_SCRIPT = "run_planner.jl"

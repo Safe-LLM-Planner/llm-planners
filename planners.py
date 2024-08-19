@@ -304,3 +304,12 @@ class LlmTotPlanner(BasePlanner):
                  f"Plan: {plan} \n"
 
         return prompt
+
+available_planners = {
+    "llm_ic_pddl"   : LlmIcPddlPlanner(),
+    "llm_pddl"      : LlmPddlPlanner(),
+    "llm"           : LlmPlanner(),
+    "llm_ic"        : LlmIcPlanner(),
+    "llm_stepbystep": LlmSbSPlanner(),
+    "llm_tot_ic"    : LlmTotPlanner() 
+}

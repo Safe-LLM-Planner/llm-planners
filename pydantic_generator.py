@@ -1,5 +1,5 @@
 from juliacall import Main as jl
-from typing import List, Union, Literal
+from typing import Union, Literal
 from pydantic import BaseModel, create_model
 
 # Initialize Julia and load PDDL package
@@ -46,6 +46,6 @@ class PydanticModelGenerator():
 
         # Define the Response model
         class ResponseModel(BaseModel):
-            steps: List[Step]
+            steps: list[Step]
 
         return ResponseModel

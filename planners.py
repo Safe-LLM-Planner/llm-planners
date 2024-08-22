@@ -192,6 +192,7 @@ class LlmIcPlanner(BaseLlmPlanner):
             context_sol=context_sol,
             task_nl=task_nl
         )
+        return prompt
 
 class LlmSbSPlanner(LlmPlanner):
 

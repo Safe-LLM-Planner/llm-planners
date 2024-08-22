@@ -3,7 +3,7 @@ import json
 import openai
 
 from collections import namedtuple
-from pydantic_generator import StrictActionsPydModelGen, ActionSentencePydModelGen
+from pydantic_generator import available_pydantic_generators
 from utils import openai_client
 from juliacall import Main as jl
 
@@ -18,6 +18,12 @@ class BasePlanner:
 
     def set_context(self, context):
         self.context = context
+
+    def set_response_model_generator(self, model_generator_name: str):
+        if model_generator_name:
+            self.model_generator = available_pydantic_generators[model_generator_name]
+        else:
+            self.model_generator = None
 
     def _load_prompt_template(self):
         if hasattr(self, 'name'):
@@ -36,9 +42,11 @@ class BasePlanner:
             return openai_client.beta.chat.completions.parse(**kwargs)
 
         response_format = None
-        if domain_pddl:
-            model_generator = StrictActionsPydModelGen(domain_pddl)
-            response_format = model_generator.create_response_model()
+        if self.model_generator:
+            if domain_pddl:
+                response_format = self.model_generator(domain_pddl).create_response_model()
+            else:
+                raise ValueError("Cannot generate Pydantic model if the pddl domain is not given")
 
         server_cnt = 0
         result_text = ""

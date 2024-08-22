@@ -53,7 +53,7 @@ class StrictActionsPydModelGen(BasePydanticModelGenerator):
 
         return step_models
 
-class ActionSentencePydModelGen(BasePydanticModelGenerator):
+class SentenceActionsPydModelGen(BasePydanticModelGenerator):
     def _generate_step_models(self) -> list:
         
         ArbitraryActionModel = create_model(
@@ -62,3 +62,9 @@ class ActionSentencePydModelGen(BasePydanticModelGenerator):
             )
 
         return [ArbitraryActionModel]
+
+available_pydantic_generators = {
+    "strict_actions": StrictActionsPydModelGen,
+    "sentence_actions": SentenceActionsPydModelGen,
+    "none": None
+}

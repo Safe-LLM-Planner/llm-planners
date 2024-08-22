@@ -1,0 +1,16 @@
+I want you to solve a planning problem.
+
+Domain Description:
+{domain_nl}
+
+Example Planning Problem:
+{context_nl}
+
+Solution for the Example Planning Problem:
+{context_sol}
+
+Now, consider the following new planning problem:
+{task_nl}
+
+Based on the provided domain description and problem statement, generate a plan to solve the problem. The plan should be a sequence of steps, presented in the form of a list or a clear sequence. Do not include any additional explanations, comments, or delimiters.
+

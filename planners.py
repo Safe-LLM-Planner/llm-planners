@@ -19,6 +19,13 @@ class BasePlanner:
     def set_context(self, context):
         self.context = context
 
+    def _load_prompt_template(self):
+        if hasattr(self, 'name'):
+            with open(f'prompt_templates/{self.name}.prompt', 'r') as file:
+                self.prompt_template = file.read()
+        else:
+            raise ValueError("Planner name not defined")
+
     def _create_prompt(self, task_nl, domain_nl):
         pass
 
@@ -93,7 +100,10 @@ class BaseLlmPddlPlanner(BasePlanner):
         
         prompt = self._create_prompt(task_nl, domain_nl)
         task_pddl = self._query_llm(prompt)
-        plan_pddl = self._run_symbolic_planner(domain_pddl, task_pddl)
+        try:
+            plan_pddl = self._run_symbolic_planner(domain_pddl, task_pddl)
+        except:
+            plan_pddl = "; symbolic planner error"
 
         res = PlannerResult(
             plan_pddl=plan_pddl, 
@@ -120,85 +130,64 @@ class BaseLlmPddlPlanner(BasePlanner):
         return sol_str
 
 class LlmIcPddlPlanner(BaseLlmPddlPlanner):
-    """
-    Our method:
-        context: (task natural language, task problem PDDL)
-        Condition on the context (task description -> task problem PDDL),
-        LLM will be asked to provide the problem PDDL of a new task description.
-        Then, we use a planner to find a correct solution, and translate
-        that back to natural language.
-    """
+
+    def __init__(self):
+        self.name = "llm_ic_pddl"
+        self._load_prompt_template()
 
     def _create_prompt(self, task_nl, domain_nl):
-        # our method (LM+P), create the problem PDDL given the context
         context_nl, context_pddl, context_sol = self.context
-        prompt = f"I want you to solve planning problems. " + \
-                 f"An example planning problem is: \n {context_nl} \n" + \
-                 f"The problem PDDL file to this problem is: \n {context_pddl} \n" + \
-                 f"Now I have a new planning problem and its description is: \n {task_nl} \n" + \
-                 f"Provide me with the problem PDDL file that describes " + \
-                 f"the new planning problem directly without further explanations? " + \
-                 f"Only return the text of the PDDL file. " + \
-                 f"Do not include any code block delimiters and do not return anything else."
+        prompt = self.prompt_template.format(
+            context_nl=context_nl,
+            context_pddl=context_pddl,
+            task_nl=task_nl
+        )
         return prompt
 
 class LlmPddlPlanner(BaseLlmPddlPlanner):
-    """
-    Baseline method:
-        Same as ours, except that no context is given. In other words, the LLM
-        will be asked to directly give a problem PDDL file without any context.
-    """
+
+    def __init__(self):
+        self.name = "llm_pddl"
+        self._load_prompt_template()
 
     def _create_prompt(self, task_nl, domain_nl):
-        # Baseline 3 (LM+P w/o context), no context, create the problem PDDL
-        prompt = f"{domain_nl} \n" + \
-                 f"Now consider a planning problem. " + \
-                 f"The problem description is: \n {task_nl} \n" + \
-                 f"Provide me with the problem PDDL file that describes " + \
-                 f"the planning problem directly without further explanations?" +\
-                 f"Keep the domain name consistent in the problem PDDL. Only return the text of the PDDL file. Do not return anything else."
+        prompt = self.prompt_template.format(
+            domain_nl=domain_nl,
+            task_nl=task_nl
+        )
         return prompt
 
 class LlmPlanner(BaseLlmPlanner):
-    """
-    Baseline method:
-        The LLM will be asked to directly give a plan based on the task description.
-    """
+
+    def __init__(self):
+        self.name = "llm"
+        self._load_prompt_template()
 
     def _create_prompt(self, task_nl, domain_nl):
-        # Baseline 1 (LLM-as-P): directly ask the LLM for plan
-        prompt = f"{domain_nl} \n" + \
-                 f"Now consider a planning problem. " + \
-                 f"The problem description is: \n {task_nl} \n" + \
-                 f"Can you provide a correct plan, in the way of a " + \
-                 f"sequence of behaviors, to solve the problem?"
+        prompt = self.prompt_template.format(
+            domain_nl=domain_nl,
+            task_nl=task_nl
+        )
         return prompt
 
 class LlmIcPlanner(BaseLlmPlanner):
-    """
-    Baseline method:
-        The LLM will be asked to directly give a plan based on the task description.
-    """
+
+    def __init__(self):
+        self.name = "llm_ic"
+        self._load_prompt_template()
 
     def _create_prompt(self, task_nl, domain_nl):
-        # Baseline 2 (LLM-as-P with context): directly ask the LLM for plan
         context_nl, context_pddl, context_sol = self.context
-        prompt = f"{domain_nl} \n" + \
-                 f"An example planning problem is: \n {context_nl} \n" + \
-                 f"A plan for the example problem is: \n {context_sol} \n" + \
-                 f"Now I have a new planning problem and its description is: \n {task_nl} \n" + \
-                 f"Can you provide a correct plan, in the way of a " + \
-                 f"sequence of behaviors, to solve the problem?"
-        return prompt
+        prompt = self.prompt_template.format(
+            domain_nl=domain_nl,
+            context_nl=context_nl,
+            context_sol=context_sol,
+            task_nl=task_nl
+        )
 
 class LlmSbSPlanner(LlmPlanner):
-    """
-    Baseline method:
-        The LLM will be asked to directly give a plan based on the task description.
-    """
 
     def _create_prompt(self, task_nl, domain_nl):
-        # Baseline 1 (LLM-as-P): directly ask the LLM for plan
 
         prompt = super()._create_prompt(task_nl, domain_nl)
         prompt += " \nPlease think step by step."

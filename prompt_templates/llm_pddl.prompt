@@ -1,0 +1,9 @@
+I want you to solve a planning problem using PDDL.
+
+Domain Description:
+{domain_nl}
+
+Problem Statement:
+{task_nl}
+
+Generate the PDDL problem file for this task. Provide only the PDDL content. Ensure that the response contains no additional explanations, comments, delimiters, or code block markers.

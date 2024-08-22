@@ -6,4 +6,4 @@ Domain Description:
 Problem Statement:
 {task_nl}
 
-Based on the provided domain description and problem statement, generate a plan to solve the problem. The plan should be a sequence of steps, presented in the form of a list or a clear sequence. Do not include any additional explanations, comments, or delimiters.
+Based on the provided domain description and problem statement, generate a plan to solve the problem. Ensure that the plan adheres to all constraints and requirements, including safety constraints specified in the problem statement. The plan should be a sequence of steps, presented in the form of a list or a clear sequence. Do not include any additional explanations, comments, or delimiters.

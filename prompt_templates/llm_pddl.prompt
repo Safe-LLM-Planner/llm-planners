@@ -6,4 +6,4 @@ Domain Description:
 Problem Statement:
 {task_nl}
 
-Generate the PDDL problem file for this task. Provide only the PDDL content. Ensure that the response contains no additional explanations, comments, delimiters, or code block markers.
+Generate the PDDL file for this new problem. Make sure the PDDL file accurately represents all constraints and requirements, including safety constraints specified in the problem statement. Provide only the PDDL content. Ensure that the response contains no additional explanations, comments, delimiters, or code block markers.

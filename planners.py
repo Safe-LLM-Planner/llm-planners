@@ -3,7 +3,7 @@ import json
 import openai
 
 from collections import namedtuple
-from pydantic_generator import PydanticModelGenerator
+from pydantic_generator import StrictActionsPydModelGen, ActionSentencePydModelGen
 from utils import openai_client
 from juliacall import Main as jl
 
@@ -37,7 +37,7 @@ class BasePlanner:
 
         response_format = None
         if domain_pddl:
-            model_generator = PydanticModelGenerator(domain_pddl)
+            model_generator = StrictActionsPydModelGen(domain_pddl)
             response_format = model_generator.create_response_model()
 
         server_cnt = 0
@@ -72,27 +72,27 @@ class BaseLlmPlanner(BasePlanner):
         
         prompt = self._create_prompt(task_nl, domain_nl)
         plan_json = self._query_llm(prompt, domain_pddl)
-        plan_pddl = self._translate_json_to_pddl(plan_json)
+        # plan_pddl = self._translate_json_to_pddl(plan_json)
 
         res = PlannerResult(
-            plan_pddl=plan_pddl, 
+            plan_pddl=None, 
             plan_json=plan_json,
             task_pddl=None
             )
 
         return res
 
-    def _translate_json_to_pddl(self, json_structured_plan: str):
-        plan_pddl = []
+    # def _translate_json_to_pddl(self, json_structured_plan: str):
+    #     plan_pddl = []
 
-        plan_dict = json.loads(json_structured_plan)
+    #     plan_dict = json.loads(json_structured_plan)
         
-        for step in plan_dict["steps"]:
-            action_name = step["action_name"]
-            arguments = [value for key, value in step.items() if key != "action_name"]
-            plan_pddl.append(f"({action_name} {' '.join(arguments)})")
+    #     for step in plan_dict["steps"]:
+    #         action_name = step["action_name"]
+    #         arguments = [value for key, value in step.items() if key != "action_name"]
+    #         plan_pddl.append(f"({action_name} {' '.join(arguments)})")
         
-        return "\n".join(plan_pddl)
+    #     return "\n".join(plan_pddl)
 
 class BaseLlmPddlPlanner(BasePlanner):
 

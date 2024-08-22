@@ -5,17 +5,33 @@ from pydantic import BaseModel, create_model
 # Initialize Julia and load PDDL package
 jl.seval('using PDDL')
 
-class PydanticModelGenerator():
+class BasePydanticModelGenerator:
     def __init__(self, domain_pddl: str):
         self.domain = jl.PDDL.parse_domain(domain_pddl)
 
     # Function to generate Pydantic models from domain actions
-    def _generate_step_models(self):
+    def _generate_step_models(self) -> list:
+        raise NotImplementedError
 
+    # Function to create the Response model
+    def create_response_model(self):
+        step_models = self._generate_step_models()
+
+        # Create a Union of all step models
+        Step = Union[tuple(step_models)]
+
+        # Define the Response model
+        class ResponseModel(BaseModel):
+            steps: list[Step]
+
+        return ResponseModel
+
+class StrictActionsPydModelGen(BasePydanticModelGenerator):
+    def _generate_step_models(self) -> list:
         # Get actions from the PDDL domain
         actions = jl.PDDL.get_actions(self.domain)
 
-        step_models = {}
+        step_models = []
 
         for action in actions.values():
             # Extract action name and parameters
@@ -33,19 +49,16 @@ class PydanticModelGenerator():
 
             # Dynamically create a Pydantic model for each action
             model_name = f"{action_name_str.capitalize()}Step"
-            step_models[action_name_str] = create_model(model_name, **fields, __base__=BaseModel)
+            step_models.append(create_model(model_name, **fields, __base__=BaseModel))
 
         return step_models
 
-    # Function to create the Response model
-    def create_response_model(self):
-        step_models = self._generate_step_models()
+class ActionSentencePydModelGen(BasePydanticModelGenerator):
+    def _generate_step_models(self) -> list:
+        
+        ArbitraryActionModel = create_model(
+            "ArbitraryActionModel", 
+            action=(str, ...)
+            )
 
-        # Create a Union of all step models
-        Step = Union[tuple(step_models.values())]
-
-        # Define the Response model
-        class ResponseModel(BaseModel):
-            steps: list[Step]
-
-        return ResponseModel
+        return [ArbitraryActionModel]

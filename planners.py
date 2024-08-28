@@ -126,7 +126,8 @@ class BaseLlmPddlPlanner(BasePlanner):
         # plan
         domain = jl.PDDL.parse_domain(domain_pddl_text)
         problem = jl.PDDL.parse_problem(problem_pddl_text)
-        planner = jl.SymbolicPlanners.AStarPlanner(jl.SymbolicPlanners.HAdd())
+        planner = jl.SymbolicPlanners.ForwardPlanner()
+        # planner = jl.SymbolicPlanners.AStarPlanner(jl.SymbolicPlanners.HAdd())
         if jl.isnothing(jl.PDDL.get_constraints(problem)):
             sol = planner(domain, problem)
         else:

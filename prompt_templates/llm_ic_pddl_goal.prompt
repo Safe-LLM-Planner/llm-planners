@@ -16,4 +16,5 @@ Problem Initial State in PDDL:
 {goal_nl}
 
 **Instructions**:
-Generate only the `:goal` section of the PDDL file based on the provided problem goal and the given initial state. The output must be in strict PDDL format, containing only the `:goal` section. Do not include any additional explanations, comments, delimiters, or code block markers. Provide the PDDL content only.
+Generate only the `:goal` section of the PDDL file based on the provided problem goal and the given initial state.
+The available logical operators are `and`, `or`, `imply`, `not`. The output must be in strict PDDL format, containing only the `:goal` section. Do not include any additional explanations, comments, delimiters, or code block markers. Provide the PDDL content only.

@@ -5,6 +5,7 @@ import openai
 from collections import namedtuple
 from pydantic_generator import available_pydantic_generators
 from utils import openai_client
+from config import OPENAI_MODEL
 from juliacall import Main as jl
 
 # Initialize Julia and load PDDL package
@@ -47,9 +48,8 @@ class BasePlanner:
         result_text = ""
         while server_cnt < 10:
             try:
-
                 completions_args = {
-                    'model': "gpt-4o-mini-2024-07-18",
+                    'model': OPENAI_MODEL,
                     'temperature': 0.0,
                     'top_p': 1,
                     'frequency_penalty': 0,
@@ -109,12 +109,15 @@ class BaseLlmPddlPlanner(BasePlanner):
         
         init_prompt = self._create_init_prompt(init_nl, domain_nl, domain_pddl)
         init_pddl = self._query_llm(init_prompt)
+        init_pddl = init_pddl.strip("`")
 
         goal_prompt = self._create_goal_prompt(goal_nl, init_pddl, domain_nl, domain_pddl)
         goal_pddl = self._query_llm(goal_prompt)
+        goal_pddl = goal_pddl.strip("`")
 
         constraints_prompt = self._create_constraints_prompt(constraints_nl, init_pddl, domain_nl, domain_pddl)
         constraints_pddl = self._query_llm(constraints_prompt)
+        constraints_pddl = constraints_pddl.strip("`")
 
         task_pddl = self._compose_task_pddl(init_pddl, goal_pddl, constraints_pddl)
 

@@ -1,15 +1,32 @@
-I want you to solve a planning problem.
+You are required to solve a planning problem.
 
-Domain Description:
+**Domain Description**:
 {domain_nl}
 
-Example Planning Problem:
-{context_nl}
+**Example Problem**: 
 
-Solution for the Example Planning Problem:
+*Example Problem Initial State*:
+{context_init_nl}
+
+*Example Problem Goal*:
+{context_goal_nl}
+
+*Example Problem Safety Constraints*:
+{context_constraints_nl}
+
+**Solution for the Example Planning Problem**:
 {context_sol}
 
-Now, consider the following new planning problem:
-{task_nl}
+**New problem**: 
 
-Based on the provided domain description and problem statement, generate a plan to solve the problem. Ensure that the plan adheres to all constraints and requirements, including safety constraints specified in the problem statement. The plan should be a sequence of steps, presented in the form of a list or a clear sequence. Do not include any additional explanations, comments, or delimiters.
+*Problem Initial State*:
+{init_nl}
+
+*Problem Goal*:
+{goal_nl}
+
+*Problem Safety Constraints*:
+{constraints_nl}
+
+**Instructions**:
+Generate a plan to achieve the specified goal from the initial state. The plan should be a list of steps, each clearly defined and in sequence. Ensure that every step complies with the provided safety constraints and adheres to the requirements of the problem. Avoid including any additional explanations, comments, or delimiters in your response.

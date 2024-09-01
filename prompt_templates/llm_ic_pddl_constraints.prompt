@@ -1,19 +1,19 @@
 You are required to solve a planning problem using PDDL.
 
-Domain Description:
+**Domain Description**:
 {domain_nl}
 
-Example Problem Safety Constraints:
+**Example Problem Safety Constraints**:
 {context_constraints_nl}
 
-Corresponding Example PDDL Output:
+**Corresponding Example PDDL Output**:
 {context_constraints_pddl}
 
-Problem Initial State in PDDL:
+**Problem Initial State in PDDL**:
 {init_pddl}
 
-Problem Safety Constraints:
+**Problem Safety Constraints**:
 {constraints_nl}
 
-Instructions:
+**Instructions**:
 Generate only the `:constraints` section of the PDDL file based on the provided safety constraints and the given initial state. The output must be in strict PDDL format, containing only the `:constraints` section. Do not include any additional explanations, comments, delimiters, or code block markers. Provide the PDDL content only.

@@ -73,8 +73,7 @@ class BaseLlmPlanner(BasePlanner):
 
     def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:
         
-        task_nl = "\n".join([init_nl, goal_nl, constraints_nl])
-        prompt = self._create_prompt(task_nl, domain_nl)
+        prompt = self._create_prompt(init_nl, goal_nl, constraints_nl, domain_nl)
         plan_json = self._query_llm(prompt, domain_pddl)
 
         res = PlannerResult(
@@ -238,10 +237,12 @@ class LlmPlanner(BaseLlmPlanner):
         self.name = "llm"
         self._load_prompt_templates()
 
-    def _create_prompt(self, task_nl, domain_nl):
+    def _create_prompt(self, init_nl, goal_nl, constraints_nl, domain_nl):
         prompt = self.prompt_template.format(
             domain_nl=domain_nl,
-            task_nl=task_nl
+            init_nl=init_nl,
+            goal_nl=goal_nl,
+            constraints_nl=constraints_nl
         )
         return prompt
 
@@ -251,17 +252,16 @@ class LlmIcPlanner(BaseLlmPlanner):
         self.name = "llm_ic"
         self._load_prompt_templates()
 
-    def _create_prompt(self, task_nl, domain_nl):
-        context_nl = "\n".join([
-            self.context["init_nl"], 
-            self.context["goal_nl"], 
-            self.context["constraints_nl"]
-        ])
+    def _create_prompt(self, init_nl, goal_nl, constraints_nl, domain_nl):
         prompt = self.prompt_template.format(
             domain_nl=domain_nl,
-            context_nl=context_nl,
+            context_init_nl=self.context["init_nl"],
+            context_goal_nl=self.context["goal_nl"],
+            context_constraints_nl=self.context["constraints_nl"],
             context_sol=self.context["sol"],
-            task_nl=task_nl
+            init_nl=init_nl,
+            goal_nl=goal_nl,
+            constraints_nl=constraints_nl
         )
         return prompt
 

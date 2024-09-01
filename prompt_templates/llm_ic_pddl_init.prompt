@@ -1,16 +1,16 @@
 You are required to solve a planning problem using PDDL.
 
-Domain Description:
+**Domain Description**:
 {domain_nl}
 
-Example Problem Initial State:
+**Example Problem Initial State**:
 {context_init_nl}
 
-Corresponding Example PDDL Output:
+**Corresponding Example PDDL Output**:
 {context_init_pddl}
 
-Problem Initial State:
+**Problem Initial State**:
 {init_nl}
 
-Instructions:
+**Instructions**:
 Generate only the `:objects` and `:init` sections of the PDDL file for the provided problem initial state. The output must be in strict PDDL format, containing only the `:objects` and `:init` sections. Exclude any additional explanations, comments, delimiters, or code block markers. Provide the PDDL content only.

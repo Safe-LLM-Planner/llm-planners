@@ -1,12 +1,12 @@
 I want you to solve a planning problem using PDDL.
 
-Example Planning Problem:
+**Example Planning Problem**:
 {context_nl}
 
-Example PDDL File:
+**Example PDDL File**:
 {context_pddl}
 
-Now, consider the following new planning problem:
+**Now, consider the following new planning problem**:
 {task_nl}
 
 Generate the PDDL file for this new problem. Make sure the PDDL file accurately represents all constraints and requirements, including safety constraints specified in the problem statement. Provide only the PDDL content. Ensure that the response contains no additional explanations, comments, delimiters, or code block markers.

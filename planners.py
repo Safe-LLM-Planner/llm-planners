@@ -13,11 +13,13 @@ jl.seval('using PDDL, SymbolicPlanners')
 PlannerResult = namedtuple("PlannerResult", ["plan_pddl", "plan_json", "task_pddl"])
 
 class BasePlanner:
-    def run_planner(self, task_nl, domain_nl, domain_pddl) -> PlannerResult:
+    def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:
         raise NotImplementedError
 
-    def set_context(self, context):
+    def set_context(self, context, domain_name, task_name):
         self.context = context
+        self.domain_name = domain_name
+        self.task_name = task_name
 
     def set_response_model_generator(self, model_generator_name: str):
         if model_generator_name:
@@ -25,15 +27,8 @@ class BasePlanner:
         else:
             self.model_generator = None
 
-    def _load_prompt_template(self):
-        if hasattr(self, 'name'):
-            with open(f'prompt_templates/{self.name}.prompt', 'r') as file:
-                self.prompt_template = file.read()
-        else:
-            raise ValueError("Planner name not defined")
-
-    def _create_prompt(self, task_nl, domain_nl):
-        pass
+    def _load_prompt_templates(self):
+        raise NotImplementedError
 
     def _query_llm(self, prompt_text, domain_pddl = None):
 
@@ -54,7 +49,7 @@ class BasePlanner:
             try:
 
                 completions_args = {
-                    'model': "gpt-4o-2024-08-06",
+                    'model': "gpt-4o-mini-2024-07-18",
                     'temperature': 0.0,
                     'top_p': 1,
                     'frequency_penalty': 0,
@@ -76,11 +71,11 @@ class BasePlanner:
 
 class BaseLlmPlanner(BasePlanner):
 
-    def run_planner(self, task_nl, domain_nl, domain_pddl) -> PlannerResult:
+    def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:
         
+        task_nl = "\n".join([init_nl, goal_nl, constraints_nl])
         prompt = self._create_prompt(task_nl, domain_nl)
         plan_json = self._query_llm(prompt, domain_pddl)
-        # plan_pddl = self._translate_json_to_pddl(plan_json)
 
         res = PlannerResult(
             plan_pddl=None, 
@@ -89,6 +84,13 @@ class BaseLlmPlanner(BasePlanner):
             )
 
         return res
+
+    def _load_prompt_templates(self):
+        if hasattr(self, 'name'):
+            with open(f'prompt_templates/{self.name}.prompt', 'r') as file:
+                self.prompt_template = file.read()
+        else:
+            raise ValueError("Planner name not defined")
 
     # def _translate_json_to_pddl(self, json_structured_plan: str):
     #     plan_pddl = []
@@ -104,10 +106,19 @@ class BaseLlmPlanner(BasePlanner):
 
 class BaseLlmPddlPlanner(BasePlanner):
 
-    def run_planner(self, task_nl, domain_nl, domain_pddl) -> PlannerResult:
+    def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:
         
-        prompt = self._create_prompt(task_nl, domain_nl)
-        task_pddl = self._query_llm(prompt)
+        init_prompt = self._create_init_prompt(init_nl, domain_nl, domain_pddl)
+        init_pddl = self._query_llm(init_prompt)
+
+        goal_prompt = self._create_goal_prompt(goal_nl, init_pddl, domain_nl, domain_pddl)
+        goal_pddl = self._query_llm(goal_prompt)
+
+        constraints_prompt = self._create_constraints_prompt(constraints_nl, init_pddl, domain_nl, domain_pddl)
+        constraints_pddl = self._query_llm(constraints_prompt)
+
+        task_pddl = self._compose_task_pddl(init_pddl, goal_pddl, constraints_pddl)
+
         try:
             plan_pddl = self._run_symbolic_planner(domain_pddl, task_pddl)
         except:
@@ -120,6 +131,11 @@ class BaseLlmPddlPlanner(BasePlanner):
             )
 
         return res
+
+    def _compose_task_pddl(self, init_pddl, goal_pddl, constraints_pddl) -> str:
+        problem_name_pddl = f"(problem {self.domain_name}-{self.task_name})"
+        domain_name_pddl = f"(:domain {self.domain_name})"
+        return f"(define {problem_name_pddl} {domain_name_pddl} {init_pddl} {goal_pddl} {constraints_pddl})"
 
     def _run_symbolic_planner(self, domain_pddl_text, problem_pddl_text):
 
@@ -138,18 +154,49 @@ class BaseLlmPddlPlanner(BasePlanner):
         sol_str = "\n".join([jl.PDDL.write_pddl(a) for a in sol])
         return sol_str
 
+    def _load_prompt_templates(self):
+        if hasattr(self, 'name'):
+            with open(f'prompt_templates/{self.name}_init.prompt', 'r') as file:
+                self.init_prompt_template = file.read()
+            with open(f'prompt_templates/{self.name}_goal.prompt', 'r') as file:
+                self.goal_prompt_template = file.read()
+            with open(f'prompt_templates/{self.name}_constraints.prompt', 'r') as file:
+                self.constraints_prompt_template = file.read()
+        else:
+            raise ValueError("Planner name not defined")
+
 class LlmIcPddlPlanner(BaseLlmPddlPlanner):
 
     def __init__(self):
         self.name = "llm_ic_pddl"
-        self._load_prompt_template()
+        self._load_prompt_templates()
 
-    def _create_prompt(self, task_nl, domain_nl):
-        context_nl, context_pddl, context_sol = self.context
-        prompt = self.prompt_template.format(
-            context_nl=context_nl,
-            context_pddl=context_pddl,
-            task_nl=task_nl
+    def _create_init_prompt(self, init_nl, domain_nl, domain_pddl) -> str:
+        prompt = self.init_prompt_template.format(
+            domain_nl=domain_nl,
+            context_init_nl = self.context["init_nl"],
+            context_init_pddl = self.context["init_pddl"],
+            init_nl=init_nl
+        )
+        return prompt
+
+    def _create_goal_prompt(self, goal_nl, init_pddl, domain_nl, domain_pddl) -> str:
+        prompt = self.goal_prompt_template.format(
+            domain_nl=domain_nl,
+            context_goal_nl = self.context["goal_nl"],
+            context_goal_pddl = self.context["goal_pddl"],
+            init_pddl=init_pddl,
+            goal_nl=goal_nl
+        )
+        return prompt
+
+    def _create_constraints_prompt(self, constraints_nl, init_pddl, domain_nl, domain_pddl) -> str:
+        prompt = self.constraints_prompt_template.format(
+            domain_nl=domain_nl,
+            context_constraints_nl = self.context["constraints_nl"],
+            context_constraints_pddl = self.context["constraints_pddl"],
+            init_pddl=init_pddl,
+            constraints_nl=constraints_nl
         )
         return prompt
 
@@ -157,12 +204,31 @@ class LlmPddlPlanner(BaseLlmPddlPlanner):
 
     def __init__(self):
         self.name = "llm_pddl"
-        self._load_prompt_template()
+        self._load_prompt_templates()
 
-    def _create_prompt(self, task_nl, domain_nl):
-        prompt = self.prompt_template.format(
+    def _create_init_prompt(self, init_nl, domain_nl, domain_pddl) -> str:
+        prompt = self.init_prompt_template.format(
             domain_nl=domain_nl,
-            task_nl=task_nl
+            domain_pddl=domain_pddl,
+            init_nl=init_nl
+        )
+        return prompt
+
+    def _create_goal_prompt(self, goal_nl, init_pddl, domain_nl, domain_pddl) -> str:
+        prompt = self.goal_prompt_template.format(
+            domain_nl=domain_nl,
+            domain_pddl=domain_pddl,
+            init_pddl=init_pddl,
+            goal_nl=goal_nl
+        )
+        return prompt
+
+    def _create_constraints_prompt(self, constraints_nl, init_pddl, domain_nl, domain_pddl) -> str:
+        prompt = self.constraints_prompt_template.format(
+            domain_nl=domain_nl,
+            domain_pddl=domain_pddl,
+            init_pddl=init_pddl,
+            constraints_nl=constraints_nl
         )
         return prompt
 
@@ -170,7 +236,7 @@ class LlmPlanner(BaseLlmPlanner):
 
     def __init__(self):
         self.name = "llm"
-        self._load_prompt_template()
+        self._load_prompt_templates()
 
     def _create_prompt(self, task_nl, domain_nl):
         prompt = self.prompt_template.format(
@@ -183,14 +249,18 @@ class LlmIcPlanner(BaseLlmPlanner):
 
     def __init__(self):
         self.name = "llm_ic"
-        self._load_prompt_template()
+        self._load_prompt_templates()
 
     def _create_prompt(self, task_nl, domain_nl):
-        context_nl, context_pddl, context_sol = self.context
+        context_nl = "\n".join([
+            self.context["init_nl"], 
+            self.context["goal_nl"], 
+            self.context["constraints_nl"]
+        ])
         prompt = self.prompt_template.format(
             domain_nl=domain_nl,
             context_nl=context_nl,
-            context_sol=context_sol,
+            context_sol=self.context["sol"],
             task_nl=task_nl
         )
         return prompt

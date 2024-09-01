@@ -1,0 +1,19 @@
+You are required to solve a planning problem using PDDL.
+
+Domain Description:
+{domain_nl}
+
+Example Problem Goal:
+{context_goal_nl}
+
+Corresponding Example PDDL Output:
+{context_goal_pddl}
+
+Problem Initial State in PDDL:
+{init_pddl}
+
+Problem Goal:
+{goal_nl}
+
+Instructions:
+Generate only the `:goal` section of the PDDL file based on the provided problem goal and the given initial state. The output must be in strict PDDL format, containing only the `:goal` section. Do not include any additional explanations, comments, delimiters, or code block markers. Provide the PDDL content only.

@@ -1,17 +1,104 @@
 import backoff
 import json
 import openai
+import subprocess
+import os
 
 from collections import namedtuple
 from pydantic_generator import available_pydantic_generators
 from utils import openai_client
 from config import OPENAI_MODEL
 from juliacall import Main as jl
+from pddl_constraints_translator import PDDLConstraintsTranslator
 
 # Initialize Julia and load PDDL package
 jl.seval('using PDDL, SymbolicPlanners')
 
 PlannerResult = namedtuple("PlannerResult", ["plan_pddl", "plan_json", "task_pddl"])
+
+def run_symbolic_planner_jl(domain_pddl_text, problem_pddl_text):
+    # plan
+    domain = jl.PDDL.parse_domain(domain_pddl_text)
+    problem = jl.PDDL.parse_problem(problem_pddl_text)
+    planner = jl.SymbolicPlanners.ForwardPlanner()
+    # planner = jl.SymbolicPlanners.AStarPlanner(jl.SymbolicPlanners.HAdd())
+    if jl.isnothing(jl.PDDL.get_constraints(problem)):
+        sol = planner(domain, problem)
+    else:
+        state = jl.PDDL.initstate(domain, problem)
+        spec = jl.SymbolicPlanners.StateConstrainedGoal(problem)
+        sol = planner(domain, state, spec)
+
+    sol_str = "\n".join([jl.PDDL.write_pddl(a) for a in sol])
+    return sol_str
+
+def run_fast_downward_planner(domain_pddl_text, problem_pddl_text):
+
+    translator = PDDLConstraintsTranslator()
+    domain_pddl_text = translator.translate_domain(domain_pddl_text, problem_pddl_text)
+
+    time_limit = 200
+    tmp_dir = "tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+    
+    domain_pddl_file = os.path.join(tmp_dir, "domain.pddl")
+    problem_pddl_file_name = os.path.join(tmp_dir, "problem.pddl")
+    sas_file_name = os.path.join(tmp_dir, "problem.sas")
+    plan_file_name = os.path.join(tmp_dir, "plan.pddl")
+    
+    FAST_DOWNWARD_SEARCH = "eager_greedy([add()])"
+    
+    try:
+        # Write domain and problem PDDL content to temporary files
+        with open(domain_pddl_file, "w") as domain_file:
+            domain_file.write(domain_pddl_text)
+        with open(problem_pddl_file_name, "w") as problem_file:
+            problem_file.write(problem_pddl_text)
+        
+        # Construct the Fast Downward command
+        run_command = [
+            "python", "./downward/fast-downward.py",
+            "--search-time-limit", str(time_limit),
+            "--plan-file", plan_file_name,
+            "--sas-file", sas_file_name,
+            domain_pddl_file,
+            problem_pddl_file_name,
+            "--search", FAST_DOWNWARD_SEARCH
+        ]
+
+        # Run the command
+        result = subprocess.run(run_command, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise RuntimeError(f"Planner failed: {result.stderr}")
+        
+        # print("Planner output:")
+        # print(result.stdout)
+        
+        # Check if the plan file was created
+        if os.path.exists(plan_file_name):
+            with open(plan_file_name, "r") as plan_file:
+                plan = plan_file.read()
+            # print("Plan found:")
+            # print(plan)
+            return translator.translate_plan_back(plan)
+        else:
+            # print("No plan found.")
+            return ""
+    
+    except Exception as e:
+        print(f"Error during planning: {e}")
+    
+    finally:
+        # Cleanup temporary files
+        if os.path.exists(domain_pddl_file):
+            os.remove(domain_pddl_file)
+        if os.path.exists(problem_pddl_file_name):
+            os.remove(problem_pddl_file_name)
+        if os.path.exists(sas_file_name):
+            os.remove(sas_file_name)
+        if os.path.exists(plan_file_name):
+            os.remove(plan_file_name)
 
 class BasePlanner:
     def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:
@@ -140,21 +227,7 @@ class BaseLlmPddlPlanner(BasePlanner):
         return f"(define {problem_name_pddl} {domain_name_pddl} {init_pddl} {goal_pddl} {constraints_pddl})"
 
     def _run_symbolic_planner(self, domain_pddl_text, problem_pddl_text):
-
-        # plan
-        domain = jl.PDDL.parse_domain(domain_pddl_text)
-        problem = jl.PDDL.parse_problem(problem_pddl_text)
-        planner = jl.SymbolicPlanners.ForwardPlanner()
-        # planner = jl.SymbolicPlanners.AStarPlanner(jl.SymbolicPlanners.HAdd())
-        if jl.isnothing(jl.PDDL.get_constraints(problem)):
-            sol = planner(domain, problem)
-        else:
-            state = jl.PDDL.initstate(domain, problem)
-            spec = jl.SymbolicPlanners.StateConstrainedGoal(problem)
-            sol = planner(domain, state, spec)
-
-        sol_str = "\n".join([jl.PDDL.write_pddl(a) for a in sol])
-        return sol_str
+        return run_symbolic_planner_jl(domain_pddl_text, problem_pddl_text)
 
     def _load_prompt_templates(self):
         if hasattr(self, 'name'):

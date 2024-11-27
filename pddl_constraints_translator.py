@@ -77,8 +77,8 @@ class PDDLConstraintsTranslator:
             problem_text (str): Input PDDL problem.
         """
         constraints = self.extract_constraints_from_problem(problem_text)
-        if not constraints:
-            raise ValueError("No constraints found in problem text")
+        # if not constraints:
+        #     raise ValueError("No constraints found in problem text")
 
         # Add the constraints predicate
         domain_text = domain_text.replace(

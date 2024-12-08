@@ -29,7 +29,9 @@ class PDDLConstraintsTranslator:
         for element in parsed:
             if isinstance(element, list) and element[0] == Symbol(':constraints'):
                 # Convert back to PDDL format, skipping the first element (:constraints)
-                return dumps(element[1:])[1:-1].strip()  # Strip enclosing square brackets
+                dumped = dumps(element[1:])[1:-1].strip()
+                cleaned = dumped.replace(r'\?', '?')
+                return cleaned
         
         return ""  # No :constraints block found
 

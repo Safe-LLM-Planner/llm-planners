@@ -37,8 +37,8 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
     # non-optimal search strategy
     FAST_DOWNWARD_NONOPTIMAL_SEARCH = "eager_greedy([add()])"
 
-    # optimal preset search configuration
-    FAST_DOWNWARD_OPTIMAL_ALIAS = "seq-opt-fdss-1"
+    # optimal search strategy
+    FAST_DOWNWARD_OPTIMAL_SEARCH = "astar(blind())"
 
     translator = PDDLConstraintsTranslator()
     domain_pddl_text = translator.translate_domain(domain_pddl_text, problem_pddl_text)
@@ -65,9 +65,6 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
             "python", "./downward/fast-downward.py",
         ]
 
-        if optimality:
-            run_command += ["--alias", FAST_DOWNWARD_OPTIMAL_ALIAS]
-
         run_command += [
             "--search-time-limit", str(time_limit),
             "--plan-file", plan_file_name,
@@ -76,7 +73,9 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
             problem_pddl_file_name
         ]
 
-        if not optimality:
+        if optimality:
+            run_command += ["--search", FAST_DOWNWARD_OPTIMAL_SEARCH]
+        else:
             run_command += ["--search", FAST_DOWNWARD_NONOPTIMAL_SEARCH]
 
         # print(" ".join(run_command))
@@ -104,16 +103,16 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
     except Exception as e:
         print(f"Error during planning: {e}")
     
-    finally:
-        # Cleanup temporary files
-        if os.path.exists(domain_pddl_file):
-            os.remove(domain_pddl_file)
-        if os.path.exists(problem_pddl_file_name):
-            os.remove(problem_pddl_file_name)
-        if os.path.exists(sas_file_name):
-            os.remove(sas_file_name)
-        if os.path.exists(plan_file_name):
-            os.remove(plan_file_name)
+    # finally:
+    #     # Cleanup temporary files
+    #     if os.path.exists(domain_pddl_file):
+    #         os.remove(domain_pddl_file)
+    #     if os.path.exists(problem_pddl_file_name):
+    #         os.remove(problem_pddl_file_name)
+    #     if os.path.exists(sas_file_name):
+    #         os.remove(sas_file_name)
+    #     if os.path.exists(plan_file_name):
+    #         os.remove(plan_file_name)
 
 class BasePlanner:
     def run_planner(self, init_nl, goal_nl, constraints_nl, domain_nl, domain_pddl) -> PlannerResult:

@@ -1,0 +1,33 @@
+[project]
+name = "llm-planners"
+version = "0.0.1"
+authors = [
+  { name="Agustin Martinez Sune" },
+]
+description = "Provides various architectures integrating LLMs and automated symbolic planners"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE" }
+dependencies = [
+  "backoff",
+  "openai",
+  "juliacall",
+  "sexpdata"
+]
+
+[project.urls]
+Homepage = "https://github.com/Safe-LLM-Planner/llm-planners"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true  # Ensures non-code files are included
+
+[tool.setuptools.package-data]
+llm_planners = ["prompt_templates/*.prompt"]

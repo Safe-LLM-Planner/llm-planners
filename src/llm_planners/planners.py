@@ -3,13 +3,13 @@ import json
 import openai
 import subprocess
 import os
-
 from collections import namedtuple
-from pydantic_generator import available_pydantic_generators
-from utils import openai_client
-from config import OPENAI_MODEL
 from juliacall import Main as jl
-from pddl_constraints_translator import PDDLConstraintsTranslator
+
+from .pydantic_generator import available_pydantic_generators
+from .utils import openai_client
+from .config import OPENAI_MODEL
+from .pddl_constraints_translator import PDDLConstraintsTranslator
 
 # Initialize Julia and load PDDL package
 jl.seval('using PDDL, SymbolicPlanners')
@@ -196,11 +196,29 @@ class BaseLlmPlanner(BasePlanner):
         return res
 
     def _load_prompt_templates(self):
-        if hasattr(self, 'name'):
-            with open(f'prompt_templates/{self.name}.prompt', 'r') as file:
+        if not hasattr(self, 'name') or not self.name:
+            raise ValueError("Planner 'name' attribute is not defined or is empty.")
+        
+        # Determine the directory of the current script
+        package_dir = os.path.dirname(__file__)  # This will point to the directory where this script resides.
+        base_path = os.path.join(package_dir, "prompt_templates")
+
+        try:
+            # Construct the path to the prompt file based on `self.name`
+            prompt_file_path = os.path.join(base_path, f'{self.name}.prompt')
+
+            # Load the content of the file
+            with open(prompt_file_path, 'r') as file:
                 self.prompt_template = file.read()
-        else:
-            raise ValueError("Planner name not defined")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Error: Could not find the prompt file '{self.name}.prompt' in the directory '{base_path}'. "
+                "Ensure the file exists and the 'name' attribute is correct."
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"An unexpected error occurred while loading the prompt template for '{self.name}': {str(e)}"
+            ) from e
 
     # def _translate_json_to_pddl(self, json_structured_plan: str):
     #     plan_pddl = []
@@ -254,15 +272,31 @@ class BaseLlmPddlPlanner(BasePlanner):
         return run_symbolic_planner_jl(domain_pddl_text, problem_pddl_text)
 
     def _load_prompt_templates(self):
-        if hasattr(self, 'name'):
-            with open(f'prompt_templates/{self.name}_init.prompt', 'r') as file:
+        if not hasattr(self, 'name') or not self.name:
+            raise ValueError("Planner 'name' attribute is not defined or is empty.")
+        
+        # Determine the directory of the current script
+        package_dir = os.path.dirname(__file__)  # This will point to the directory where planners.py resides.
+        base_path = os.path.join(package_dir, "prompt_templates")
+
+        try:
+            with open(os.path.join(base_path, f'{self.name}_init.prompt'), 'r') as file:
                 self.init_prompt_template = file.read()
-            with open(f'prompt_templates/{self.name}_goal.prompt', 'r') as file:
+
+            with open(os.path.join(base_path, f'{self.name}_goal.prompt'), 'r') as file:
                 self.goal_prompt_template = file.read()
-            with open(f'prompt_templates/{self.name}_constraints.prompt', 'r') as file:
+
+            with open(os.path.join(base_path, f'{self.name}_constraints.prompt'), 'r') as file:
                 self.constraints_prompt_template = file.read()
-        else:
-            raise ValueError("Planner name not defined")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Error: Could not find one or more prompt files for the planner '{self.name}' in the directory '{base_path}'. "
+                "Ensure all required files are present and the 'name' attribute is correct."
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"An unexpected error occurred while loading prompt templates for '{self.name}': {str(e)}"
+            ) from e
 
 class LlmIcPddlPlanner(BaseLlmPddlPlanner):
 

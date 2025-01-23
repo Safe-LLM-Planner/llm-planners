@@ -2,9 +2,6 @@ import openai
 import os
 import subprocess
 
-def postprocess(x):
-    return x.strip()
-
 def load_openai_key():
     openai_keys_file = os.path.join(os.getcwd(), "keys/openai_keys.txt")
     

@@ -32,18 +32,23 @@ def run_symbolic_planner_jl(domain_pddl_text, problem_pddl_text):
     sol_str = "\n".join([jl.PDDL.write_pddl(a) for a in sol])
     return sol_str
 
-def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=False):
+def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=False, lm_cut=False, bound=None, timeout=60):
 
     # non-optimal search strategy
     FAST_DOWNWARD_NONOPTIMAL_SEARCH = "eager_greedy([add()])"
 
     # optimal search strategy
-    FAST_DOWNWARD_OPTIMAL_SEARCH = "astar(blind())"
+    heuristic = "lmcut()" if lm_cut else "blind()"
+    if bound is not None:
+        # bound argument predicates over the untranslated problem (verify-constraints actions are not counted)
+        actual_bound = 2 * bound
+        FAST_DOWNWARD_OPTIMAL_SEARCH = f"astar({heuristic},bound={actual_bound})"
+    else:
+        FAST_DOWNWARD_OPTIMAL_SEARCH = f"astar({heuristic})"
 
     translator = PDDLConstraintsTranslator()
     domain_pddl_text = translator.translate_domain(domain_pddl_text, problem_pddl_text)
 
-    time_limit = 200
     tmp_dir = "tmp"
     os.makedirs(tmp_dir, exist_ok=True)
     
@@ -66,7 +71,8 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
         ]
 
         run_command += [
-            "--search-time-limit", str(time_limit),
+            "--search-time-limit", str(timeout),
+            "--translate-time-limit", str(timeout),
             "--plan-file", plan_file_name,
             "--sas-file", sas_file_name,
             domain_pddl_file,
@@ -78,7 +84,7 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
         else:
             run_command += ["--search", FAST_DOWNWARD_NONOPTIMAL_SEARCH]
 
-        # print(" ".join(run_command))
+        print(" ".join(run_command))
 
         # Run the command
         result = subprocess.run(run_command, capture_output=True, text=True)
@@ -95,6 +101,10 @@ def run_fast_downward_planner(domain_pddl_text, problem_pddl_text, optimality=Fa
                 plan = plan_file.read()
             # print("Plan found:")
             # print(plan)
+            lines = plan.splitlines()
+            if lines[-1].startswith(";"):
+                lines = lines[:-1]
+            plan = "\n".join(lines)
             return translator.translate_plan_back(plan)
         else:
             # print("No plan found.")

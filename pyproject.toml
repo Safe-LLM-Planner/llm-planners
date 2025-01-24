@@ -22,6 +22,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/Safe-LLM-Planner/llm-planners"
 
+[project.scripts]
+llm-plan = "llm_planners.app:main"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
